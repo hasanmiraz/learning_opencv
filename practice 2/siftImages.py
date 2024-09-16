@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import itertools
 
 def rescale_image(image, target_width=600, target_height=480):
     height, width = image.shape[:2]
@@ -61,7 +62,7 @@ def create_histogram(descriptors, centroids):
 def calculate_chi_square_distance(hist1, hist2):
     return 0.5 * np.sum((hist1 - hist2) ** 2 / (hist1 + hist2 + 1e-10))
 
-def compare_images(images, k_percentages=[5, 10, 20]):
+def compare_images(images, file_names, k_percentages=[5, 10, 20]):
     all_descriptors = []
     keypoints_list = []
     for image in images:
@@ -93,12 +94,13 @@ def compare_images(images, k_percentages=[5, 10, 20]):
         print(f"\nDissimilarity Matrix for K={k} ({k_percentage}%):")
         
         # Print header
-        header = "    " + "  ".join([f"Img{i + 1}" for i in range(len(images))])
+        gap_len = " "*len(file_names[0])
+        header = gap_len+"".join([f"{file_names[i]:^20}" for i in range(len(images))])
         print(header)
         
         # Print each row
         for i in range(len(images)):
-            row = f"Img{i + 1} " + "  ".join([f"{dissimilarity_matrix[i][j]:8.4f}" for j in range(len(images))])
+            row = f"{file_names[i]}" + "".join([f"{dissimilarity_matrix[i][j]:^20.4f}" for j in range(len(images))])
             print(row)
 
 if __name__ == "__main__":
@@ -116,8 +118,22 @@ if __name__ == "__main__":
         # Task Two: Multiple images
         for idx, image in enumerate(rescaled_images):
             keypoints, _ = extract_keypoints(image)
-            print(f"Image {idx + 1}: {len(keypoints)} keypoints detected.")
-        compare_images(rescaled_images)
+            print(f"Image {file_names[idx]}: {len(keypoints)} keypoints detected.")
+        compare_images(rescaled_images, file_names)
     else:
-        # test
-        print('Enter a valid input')
+        file_names = []
+        for i in range(1, 16):
+            file_names.append(f'img{i:02}.JPG')
+        current = 0
+        combinations = list(set(itertools.combinations(file_names, 5)))
+
+        for combination in combinations:
+            print(f'currently executing combination: {current}:')
+            print(combination)
+            input_images = [cv2.imread(filename) for filename in combinations]
+            rescaled_images = [rescale_image(image) for image in input_images]
+
+            for idx, image in enumerate(rescaled_images):
+                keypoints, _ = extract_keypoints(image)
+                print(f"Image {file_names[idx]}: {len(keypoints)} keypoints detected.")
+            compare_images(rescaled_images, combination)
