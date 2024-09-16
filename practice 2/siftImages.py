@@ -9,7 +9,7 @@ def rescale_image(image, target_width=600, target_height=480):
     return cv2.resize(image, new_size)
 
 def extract_keypoints(image):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # Convert to luminance (grayscale)
     sift = cv2.SIFT_create()
     keypoints, descriptors = sift.detectAndCompute(gray, None)
     return keypoints, descriptors
@@ -36,20 +36,15 @@ def display_keypoints(image, keypoints):
     plt.show()
 
 def kmeans_clustering(descriptors, k, max_iterations=100):
-    # Randomly select initial centroids
     centroids = descriptors[np.random.choice(descriptors.shape[0], k, replace=False)]
     for _ in range(max_iterations):
-        # Compute distances and assign clusters
         distances = np.linalg.norm(descriptors[:, np.newaxis] - centroids, axis=2)
         closest_clusters = np.argmin(distances, axis=1)
 
-        # Update centroids
         new_centroids = np.array([descriptors[closest_clusters == i].mean(axis=0) for i in range(k)])
-        # Handle empty clusters by keeping the old centroids
         valid_centroids = ~np.isnan(new_centroids).any(axis=1)
         centroids[valid_centroids] = new_centroids[valid_centroids]
 
-        # Check for convergence
         if np.all(centroids == new_centroids):
             break
 
@@ -86,20 +81,43 @@ def compare_images(images, k_percentages=[5, 10, 20]):
         histograms = [create_histogram(d, centroids) if d is not None else np.zeros(k) for d in
                       [extract_keypoints(img)[1] for img in images]]
 
+        dissimilarity_matrix = np.zeros((len(images), len(images)))
+
         for i in range(len(histograms)):
-            for j in range(i + 1, len(histograms)):
+            for j in range(i, len(histograms)):
                 distance = calculate_chi_square_distance(histograms[i], histograms[j])
-                print(f"Dissimilarity between Image {i + 1} and Image {j + 1}: {distance:.4f}")
+                dissimilarity_matrix[i][j] = distance
+                dissimilarity_matrix[j][i] = distance  # Symmetric
+
+        # Print matrix in a readable format using string formatting
+        print(f"\nDissimilarity Matrix for K={k} ({k_percentage}%):")
+        
+        # Print header
+        header = "    " + "  ".join([f"Img{i + 1}" for i in range(len(images))])
+        print(header)
+        
+        # Print each row
+        for i in range(len(images)):
+            row = f"Img{i + 1} " + "  ".join([f"{dissimilarity_matrix[i][j]:8.4f}" for j in range(len(images))])
+            print(row)
 
 if __name__ == "__main__":
     import sys
+    file_names = [filename for filename in sys.argv[1:]]
     input_images = [cv2.imread(filename) for filename in sys.argv[1:]]
     rescaled_images = [rescale_image(image) for image in input_images]
 
-    for idx, image in enumerate(rescaled_images):
-        keypoints, _ = extract_keypoints(image)
-        display_keypoints(image, keypoints)
-        print(f"Image {idx + 1}: {len(keypoints)} keypoints detected.")
-
-    if len(rescaled_images) > 1:
+    if len(rescaled_images) == 1:
+        # Task One: Single image
+        keypoints, _ = extract_keypoints(rescaled_images[0])
+        display_keypoints(rescaled_images[0], keypoints)
+        print(f"Image 1: {len(keypoints)} keypoints detected.")
+    elif len(rescaled_images) > 1:
+        # Task Two: Multiple images
+        for idx, image in enumerate(rescaled_images):
+            keypoints, _ = extract_keypoints(image)
+            print(f"Image {idx + 1}: {len(keypoints)} keypoints detected.")
         compare_images(rescaled_images)
+    else:
+        # test
+        print('Enter a valid input')
